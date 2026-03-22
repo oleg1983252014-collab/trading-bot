@@ -10,7 +10,7 @@ from flask import Flask
 # =============================
 TELEGRAM_TOKEN = "8298501004:AAFWwY2sikUS87MMZz2kHCOPoKQiVn2X18E"
 CHAT_ID = "7553475512"
-TWELVE_API_KEY = ""99b3ca01dbdf45ccb2f5968b16af1c82
+TWELVE_API_KEY = "99b3ca01dbdf45ccb2f5968b16af1c82"
 
 # =============================
 # ⏱ ТАЙМФРЕЙМ
