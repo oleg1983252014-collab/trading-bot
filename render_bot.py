@@ -8,30 +8,39 @@ from flask import Flask
 # =============================
 # 🔧 НАЛАШТУВАННЯ — ЗМІН ЦЕ!
 # =============================
-TELEGRAM_TOKEN = "8298501004:AAFWwY2sikUS87MMZz2kHCOPoKQiVn2X18E"
-CHAT_ID = "7553475512"
-TWELVE_API_KEY = "99b3ca01dbdf45ccb2f5968b16af1c82"
+TELEGRAM_TOKEN = "ВАШ_ТОКЕН_СЮДИ"
+CHAT_ID = "ВАШ_CHAT_ID_СЮДИ"
+TWELVE_API_KEY = "ВАШ_TWELVE_DATA_KEY"
+
+# =============================
+# ⏱ ТАЙМФРЕЙМ
+# =============================
+INTERVAL = "5min"        # Таймфрейм свічок
+SEND_EVERY = 5           # Надсилати сигнали кожні 5 хвилин
 
 # =============================
 # 📋 ВАЛЮТНІ ПАРИ
 # =============================
 PAIRS = [
+    # Forex
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD",
     "EUR/GBP", "EUR/JPY", "GBP/JPY",
+    # Крипто
     "BTC/USD", "ETH/USD", "BNB/USD",
     "SOL/USD", "XRP/USD", "DOGE/USD",
+    # Метали
     "XAU/USD", "XAG/USD",
 ]
 
 # =============================
-# 🌐 FLASK (щоб Render не вимикав)
+# 🌐 FLASK
 # =============================
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "🤖 Бот працює!", 200
+    return "🤖 Бот працює! Таймфрейм: 5min", 200
 
 @app.route("/health")
 def health():
@@ -40,13 +49,13 @@ def health():
 # =============================
 # 📡 ОТРИМАННЯ ДАНИХ
 # =============================
-def get_candles(symbol, interval="15min", outputsize=50):
+def get_candles(symbol):
     try:
         url = "https://api.twelvedata.com/time_series"
         params = {
             "symbol": symbol,
-            "interval": interval,
-            "outputsize": outputsize,
+            "interval": INTERVAL,
+            "outputsize": 50,
             "apikey": TWELVE_API_KEY,
         }
         response = requests.get(url, params=params, timeout=10)
@@ -100,6 +109,7 @@ def get_signal(prices):
     price = prices[-1]
 
     score = 0
+
     if rsi < 30:
         score += 2
     elif rsi < 40:
@@ -153,7 +163,7 @@ def send_telegram(text):
 # =============================
 def send_signals():
     now = datetime.now().strftime("%H:%M %d.%m.%Y")
-    print(f"📊 Збираю сигнали... {now}")
+    print(f"📊 Збираю сигнали [{INTERVAL}]... {now}")
 
     buy_signals = []
     sell_signals = []
@@ -175,7 +185,7 @@ def send_signals():
         else:
             neutral_count += 1
 
-    msg = f"📊 <b>СИГНАЛИ РИНКУ</b>\n"
+    msg = f"📊 <b>СИГНАЛИ [{INTERVAL}]</b>\n"
     msg += f"🕐 {now}\n"
     msg += f"━━━━━━━━━━━━━━━\n\n"
 
@@ -208,7 +218,7 @@ def send_signals():
 # =============================
 def run_scheduler():
     send_signals()
-    schedule.every(15).minutes.do(send_signals)
+    schedule.every(SEND_EVERY).minutes.do(send_signals)
     while True:
         schedule.run_pending()
         time.sleep(30)
@@ -217,9 +227,8 @@ def run_scheduler():
 # 🏁 СТАРТ
 # =============================
 if __name__ == "__main__":
-    print("🤖 Бот запускається на Render...")
-    # Запускаємо бота в окремому потоці
+    print(f"🤖 Бот запущений! Таймфрейм: {INTERVAL}")
+    print(f"📋 Пар: {len(PAIRS)} | Сигнали кожні {SEND_EVERY} хв\n")
     thread = threading.Thread(target=run_scheduler, daemon=True)
     thread.start()
-    # Flask тримає сервер живим
     app.run(host="0.0.0.0", port=10000)
