@@ -2,7 +2,7 @@ import requests
 import schedule
 import time
 import threading
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from flask import Flask
 
 # =============================
@@ -162,7 +162,8 @@ def send_telegram(text):
 # 🚀 ВІДПРАВКА СИГНАЛІВ
 # =============================
 def send_signals():
-    now = datetime.now().strftime("%H:%M %d.%m.%Y")
+    UA_TZ = timezone(timedelta(hours=3))
+now = datetime.now(UA_TZ).strftime("%H:%M %d.%m.%Y")
     print(f"📊 Збираю сигнали [{INTERVAL}]... {now}")
 
     buy_signals = []
