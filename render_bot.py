@@ -26,15 +26,16 @@ def get_entry_time(tf: str):
     except:
         mins = 5
     now = datetime.now(KYIV)
-    current_start  = (now.minute // mins) * mins
-    next_min       = current_start + mins
-    entry_dt       = now.replace(second=0, microsecond=0, minute=0) + timedelta(minutes=next_min)
-    exit_dt        = entry_dt + timedelta(minutes=mins)
-    seconds_in     = mins * 60
-    seconds_past   = (now.minute % mins) * 60 + now.second
-    closes_in      = seconds_in - seconds_past
-    closes_min     = closes_in // 60
-    closes_sec     = closes_in % 60
+    # Скидаємо до початку поточної хвилини, потім округляємо до початку свічки
+    now_floor = now.replace(second=0, microsecond=0)
+    seconds_past = (now.minute % mins) * 60 + now.second
+    seconds_in   = mins * 60
+    closes_in    = seconds_in - seconds_past
+    closes_min   = closes_in // 60
+    closes_sec   = closes_in % 60
+    # Час входу = початок наступної свічки (через closes_in секунд)
+    entry_dt = now_floor + timedelta(seconds=closes_in)
+    exit_dt  = entry_dt + timedelta(minutes=mins)
     return (
         entry_dt.strftime("%H:%M"),
         exit_dt.strftime("%H:%M"),
