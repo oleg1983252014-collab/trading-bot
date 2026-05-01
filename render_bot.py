@@ -13,7 +13,7 @@ TWELVE_KEY = os.environ.get("TWELVE_KEY")
 if not TWELVE_KEY:
     TWELVE_KEY = "99b3ca01dbdf45ccb2f5968b16af1c82"
 
-KYIV = timezone(timedelta(hours=2))  # ← ДОДАНО
+KYIV = timezone(timedelta(hours=3))  # UTC+3 (літній час України)
 
 # ══ РОЗРАХУНОК ЧАСУ ВХОДУ ══════════════════════════════
 def get_entry_time(tf: str):
