@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 from telebot import TeleBot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-BOT_TOKEN  = "8542231431:AAHJ-9Rwr_taqFMaBd9YBau8bVcMU38633Y"
+BOT_TOKEN  = os.environ.get("BOT_TOKEN", "8542231431:AAHJ-9Rwr_taqFMaBd9YBau8bVcMU38633Y")
 TWELVE_KEY = os.environ.get("TWELVE_KEY")
 if not TWELVE_KEY:
     TWELVE_KEY = "99b3ca01dbdf45ccb2f5968b16af1c82"
@@ -263,20 +263,33 @@ def reversal_monitor():
         time.sleep(120)
 
 def auto_signal_loop():
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     while True:
         time.sleep(300)
         if not _subscribers:
             continue
         scan_pairs = FOREX_PAIRS[:6] + OTC_PAIRS[:4] + CRYPTO_PAIRS[:3]
-        results = []
-        for p in scan_pairs:
+
+        def scan_one(p):
             try:
-                tf = "5"
-                sig = generate_signal(p["name"], tf)
+                sig = generate_signal(p["name"], "5")
                 if sig and sig["acc"] >= 85 and not sig.get("blocked"):
-                    results.append((p["name"], tf, sig))
+                    return (p["name"], "5", sig)
             except:
                 pass
+            return None
+
+        results = []
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            futures = {ex.submit(scan_one, p): p for p in scan_pairs}
+            for future in as_completed(futures, timeout=30):
+                try:
+                    r = future.result()
+                    if r:
+                        results.append(r)
+                except:
+                    pass
+
         results.sort(key=lambda x: -x[2]["acc"])
         best = results[:2]
         if not best:
@@ -383,8 +396,11 @@ def get_stats(cid):
     k=str(cid)
     if k not in all_stats:
         if len(all_stats) >= MAX_USERS:
-            oldest = min(all_stats, key=lambda x: all_stats[x].get("total", 0))
-            del all_stats[oldest]
+            # Видаляємо найстаріший запис замість пошуку мінімуму по total
+            try:
+                del all_stats[next(iter(all_stats))]
+            except StopIteration:
+                pass
         all_stats[k]={"total":0,"wins":0,"losses":0,"streak":0,"pairs":{}}
     return all_stats[k]
 
@@ -569,6 +585,10 @@ def get_candles(symbol,tf,count=100):
         l=[float(v["low"]) for v in vals]
         o=[float(v["open"]) for v in vals]
         _candle_cache[cache_key] = (time.time(), c, h, l, o)
+        # Обмежуємо розмір кешу
+        if len(_candle_cache) > 200:
+            oldest = min(_candle_cache, key=lambda k: _candle_cache[k][0])
+            del _candle_cache[oldest]
         return c,h,l,o
     except: return [],[],[],[]
 
@@ -585,7 +605,8 @@ def generate_signal(pair_name,tf):
     is_otc="OTC" in pair_name
     c,h,l,o=get_candles(m["symbol"],tf,100)
     real=len(c)>=20
-    live=get_price(m["symbol"],m["p"])
+    # Використовуємо останню свічку замість окремого API запиту
+    live=c[-1] if real else get_price(m["symbol"],m["p"])
     if not real:
         seed=sum(ord(x) for x in pair_name)+(int(tf) if tf.isdigit() else 5)*7+int(time.time()//300)
         def sr(i): v=math.sin(seed*1.1+i*0.7)*43758.5453; return v-math.floor(v)
@@ -980,14 +1001,28 @@ def stats_text(cid):
             f"{streak_txt}{top_pairs}")
 
 def run_scanner(cid,tf="5"):
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     scan=FOREX_PAIRS[:8]+OTC_PAIRS[:5]
     results=[]
-    for p in scan:
+
+    def scan_one(p):
         try:
             sig=generate_signal(p["name"],tf)
             if sig and sig["acc"]>=82 and not sig.get("blocked"):
-                results.append((p["name"],tf,sig))
-        except: pass
+                return (p["name"],tf,sig)
+        except:
+            pass
+        return None
+
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        futures = {ex.submit(scan_one, p): p for p in scan}
+        for future in as_completed(futures, timeout=30):
+            try:
+                r = future.result()
+                if r:
+                    results.append(r)
+            except:
+                pass
     if not results:
         try: bot.send_message(cid,"🔍 Сканування завершено\n\nСильних сигналів не знайдено.")
         except: pass
