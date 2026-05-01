@@ -1,3 +1,5 @@
 requests
-schedule
 flask
+pyTelegramBotAPI
+matplotlib
+twelvedata
