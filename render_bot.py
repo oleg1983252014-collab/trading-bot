@@ -67,6 +67,7 @@ def _save_subscribers():
 _subscribers, _auto_tf = _load_subscribers()
 
 _last_signals = {}
+_last_auto_msg_ids = {}  # {cid: [msg_id1, msg_id2, ...]} — для видалення старих авто-сигналів
 
 JOURNAL_FILE = "journal.json"
 _journal_lock = threading.Lock()
@@ -297,17 +298,30 @@ def auto_signal_loop():
             continue
         for cid in list(_subscribers):
             try:
-                bot.send_message(cid, "⚡ *Авто-сигнали SIGNAL AI*", parse_mode="Markdown")
+                # Видаляємо попередні авто-сигнали
+                old_ids = _last_auto_msg_ids.get(str(cid), [])
+                for old_id in old_ids:
+                    try:
+                        bot.delete_message(cid, old_id)
+                    except:
+                        pass
+                _last_auto_msg_ids[str(cid)] = []
+
+                new_ids = []
+                m = bot.send_message(cid, "⚡ *Авто-сигнали SIGNAL AI*", parse_mode="Markdown")
+                new_ids.append(m.message_id)
                 for pair, tf, sig in best:
                     txt = format_signal(pair, tf, sig)
-                    bot.send_message(cid, txt, parse_mode="Markdown",
+                    m2 = bot.send_message(cid, txt, parse_mode="Markdown",
                                      reply_markup=result_kb(pair, tf))
+                    new_ids.append(m2.message_id)
                     _last_signals[str(cid)] = {
                         "pair": pair, "tf": tf,
                         "is_buy": sig["is_buy"],
                         "sent_at": time.time()
                     }
                     time.sleep(0.5)
+                _last_auto_msg_ids[str(cid)] = new_ids
             except:
                 pass
 
